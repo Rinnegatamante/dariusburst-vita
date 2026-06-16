@@ -1684,11 +1684,60 @@ void *BatchOptimizer_Constructor(uint32_t *this) {
 	return this;
 }
 
-so_hook beginscene_hook;
+char *menu_symbols[] = {
+	"_ZN25DariusViewModeMenuRanking4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN12DariusTitle24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN22DariusViewModeMenuBase4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN19DariusViewModeMenu24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN19DariusUnlockMsgMenu4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN19DariusUnlockMessage4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN18DariusTutorialMenu4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN22DariusTutorialGameRule4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN22DariusSimpleSelectMenu4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN21DariusPreGameTutorial4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN19DariusPlayerSelect24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN16DariusOptionMenu4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN16DariusNameEntry24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN22DariusMissionModeMenu24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN14DariusMenuBase4Menu8evalBodyERNS_3EnvE",
+	"_ZN25DariusIllustrationViewer24Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN16DariusConfigMenu4Menu8evalBodyERN14DariusMenuBase3EnvE",
+	"_ZN21DariusCharacterViewer4Menu8evalBodyERN14DariusMenuBase3EnvE"
+};
+
+so_hook beginscene_hook, menu_hooks[sizeof(menu_symbols) / sizeof(*menu_symbols)];
 void Renderer_BeginScene(uint32_t *this, int unk, int unk2, int unk3) {
 	SO_CONTINUE(int, beginscene_hook, this, unk, unk2, unk3);
 	((uint32_t *)this[7])[3] = vglAllocFromScratch(0x480000); // Use vitaGL internal circular pool to allow DRAW_SPEEDHACK usage
 }
+
+GLboolean is_menu = GL_FALSE;
+
+#define GEN_HOOK(x) hook_addr(so_symbol(&main_mod, menu_symbols[x]), hook_func##x)
+#define GEN_FUNC(x) \
+	int hook_func##x(void *unk, int unk2, void *unk3) { \
+		is_menu = GL_TRUE; \
+		return SO_CONTINUE(int, menu_hooks[x], unk, unk2, unk3); \
+	}
+
+GEN_FUNC(0)
+GEN_FUNC(1)
+GEN_FUNC(2)
+GEN_FUNC(3)
+GEN_FUNC(4)
+GEN_FUNC(5)
+GEN_FUNC(6)
+GEN_FUNC(7)
+GEN_FUNC(8)
+GEN_FUNC(9)
+GEN_FUNC(10)
+GEN_FUNC(11)
+GEN_FUNC(12)
+GEN_FUNC(13)
+GEN_FUNC(14)
+GEN_FUNC(15)
+GEN_FUNC(16)
+GEN_FUNC(17)
 
 void patch_game(void) {
 	new = so_symbol(&main_mod, "_Znwj");
@@ -1696,6 +1745,25 @@ void patch_game(void) {
 	
 	hook_addr(so_symbol(&main_mod, "_ZN14BatchOptimizer4BodyC2Ev"), BatchOptimizer_Constructor);
 	beginscene_hook = hook_addr(so_symbol(&main_mod, "_ZN19AndroidRenderDevice4Impl10beginSceneEv"), Renderer_BeginScene);
+	
+	menu_hooks[0] = GEN_HOOK(0);
+	menu_hooks[1] = GEN_HOOK(1);
+	menu_hooks[2] = GEN_HOOK(2);
+	menu_hooks[3] = GEN_HOOK(3);
+	menu_hooks[4] = GEN_HOOK(4);
+	menu_hooks[5] = GEN_HOOK(5);
+	menu_hooks[6] = GEN_HOOK(6);
+	menu_hooks[7] = GEN_HOOK(7);
+	menu_hooks[8] = GEN_HOOK(8);
+	menu_hooks[9] = GEN_HOOK(9);
+	menu_hooks[10] = GEN_HOOK(10);
+	menu_hooks[11] = GEN_HOOK(11);
+	menu_hooks[12] = GEN_HOOK(12);
+	menu_hooks[13] = GEN_HOOK(13);
+	menu_hooks[14] = GEN_HOOK(14);
+	menu_hooks[15] = GEN_HOOK(15);
+	menu_hooks[16] = GEN_HOOK(16);
+	menu_hooks[17] = GEN_HOOK(17);
 }
 
 int *GetIntArrayElements(void *env, void *obj) {
@@ -1944,11 +2012,18 @@ void *real_main(void *argv) {
 		if ((pad.buttons & SCE_CTRL_RTRIGGER) != (oldpad & SCE_CTRL_RTRIGGER)) {
 			onPressR1Button(&fake_env, 0, ((pad.buttons & SCE_CTRL_RTRIGGER) == SCE_CTRL_RTRIGGER) ? 1 : 0);
 		}
-		if ((pad.buttons & SCE_CTRL_START) && !(oldpad & SCE_CTRL_START)) {
-			onBackKeyPressed(&fake_env, 0);
+		if (is_menu) {
+			if ((pad.buttons & SCE_CTRL_CIRCLE) && !(oldpad & SCE_CTRL_CIRCLE)) {
+				onBackKeyPressed(&fake_env, 0);
+			}
+		} else {
+			if ((pad.buttons & SCE_CTRL_START) && !(oldpad & SCE_CTRL_START)) {
+				onBackKeyPressed(&fake_env, 0);
+			}
 		}
 		onLeftStickMove(&fake_env, 0, (float)((int)pad.lx - 127) / 127.0f, (float)((int)pad.ly - 127) / 127.0f);
 		oldpad = pad.buttons;
+		is_menu = GL_FALSE;
 		
 		/*SceTouchData touch;
 		sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
