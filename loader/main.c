@@ -1705,7 +1705,7 @@ char *menu_symbols[] = {
 	"_ZN21DariusCharacterViewer4Menu8evalBodyERN14DariusMenuBase3EnvE"
 };
 
-so_hook beginscene_hook, menu_hooks[sizeof(menu_symbols) / sizeof(*menu_symbols)];
+so_hook beginscene_hook, body_apply_hook, menu_hooks[sizeof(menu_symbols) / sizeof(*menu_symbols)];
 void Renderer_BeginScene(uint32_t *this, int unk, int unk2, int unk3) {
 	SO_CONTINUE(int, beginscene_hook, this, unk, unk2, unk3);
 	((uint32_t *)this[7])[3] = vglAllocFromScratch(0x480000); // Use vitaGL internal circular pool to allow DRAW_SPEEDHACK usage
@@ -1739,12 +1739,27 @@ GEN_FUNC(15)
 GEN_FUNC(16)
 GEN_FUNC(17)
 
+
+uint32_t *texNum;
+
+void ImageBody_Apply(uint32_t *this, uint32_t unk) {
+	// Game doesn't use glGenTextures and eventually runs out of tex handles, so fix this
+	if (*this == 0) {
+		glGenTextures(1, texNum);
+	}
+	SO_CONTINUE(int, body_apply_hook, this ,unk);
+}
+
 void patch_game(void) {
 	new = so_symbol(&main_mod, "_Znwj");
 	BatchOptimizer_Clear = so_symbol(&main_mod, "_ZN14BatchOptimizer4Body5clearEv");	
 	
+	texNum = so_symbol(&main_mod, "_ZN5Image4Body6texNumE");
+	
 	hook_addr(so_symbol(&main_mod, "_ZN14BatchOptimizer4BodyC2Ev"), BatchOptimizer_Constructor);
 	beginscene_hook = hook_addr(so_symbol(&main_mod, "_ZN19AndroidRenderDevice4Impl10beginSceneEv"), Renderer_BeginScene);
+	
+	body_apply_hook = hook_addr(so_symbol(&main_mod, "_ZN5Image4Body5applyEj"), ImageBody_Apply);
 	
 	menu_hooks[0] = GEN_HOOK(0);
 	menu_hooks[1] = GEN_HOOK(1);
@@ -1842,7 +1857,7 @@ void *real_main(void *argv) {
 	sceAppUtilInit(&init_param, &boot_param);
 	
 	printf("Booting...\n");
-	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
+	sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
 	//SceUID crasher_thread = sceKernelCreateThread("crasher", crasher, 0x40, 0x1000, 0, 0, NULL);
 	//sceKernelStartThread(crasher_thread, 0, NULL);	
 	
@@ -1959,7 +1974,8 @@ void *real_main(void *argv) {
 	vglSetParamBufferSize(6 * 1024 * 1024);
 	vglInitWithCustomThreshold(0, SCREEN_W, SCREEN_H, 0, 0, 0, 0, SCE_GXM_MULTISAMPLE_4X);
 
-	GLuint fb, fb_tex = 0x3FF;
+	GLuint fb, fb_tex;
+	glGenTextures(1, &fb_tex);
 	glBindTexture(GL_TEXTURE_2D, fb_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_W * 2, SCREEN_H * 2, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glGenFramebuffers(1, &fb);
