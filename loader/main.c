@@ -1747,7 +1747,7 @@ void ImageBody_Apply(uint32_t *this, uint32_t unk) {
 	if (*this == 0) {
 		glGenTextures(1, texNum);
 	}
-	SO_CONTINUE(int, body_apply_hook, this ,unk);
+	SO_CONTINUE(int, body_apply_hook, this, unk);
 }
 
 void patch_game(void) {
@@ -1857,7 +1857,7 @@ void *real_main(void *argv) {
 	sceAppUtilInit(&init_param, &boot_param);
 	
 	printf("Booting...\n");
-	sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
+	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
 	//SceUID crasher_thread = sceKernelCreateThread("crasher", crasher, 0x40, 0x1000, 0, 0, NULL);
 	//sceKernelStartThread(crasher_thread, 0, NULL);	
 	
