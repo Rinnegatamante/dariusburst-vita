@@ -14,6 +14,11 @@ The port has been tested with v.1.2.0 of the game.
 
 ## Changelog
 
+### v.1.1
+
+- Fixed a bug causing the game to eventually run out of texture handles, resulting in the screen being stuck on a random texture forever.
+- Made so that the back button is mapped on Circle inside menus instead of Start.
+
 ### v.1.0
 
 - Initial Release.
