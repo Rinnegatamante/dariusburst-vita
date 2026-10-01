@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -555,7 +556,6 @@ extern void *__cxa_finalize;
 extern void *__cxa_call_unexpected;
 extern void *__gnu_unwind_frame;
 extern void *__stack_chk_fail;
-int open(const char *pathname, int flags);
 
 static int chk_guard = 0x42424242;
 static int *__stack_chk_guard_fake = &chk_guard;
@@ -805,7 +805,7 @@ void *dlsym_hook( void *handle, const char *symbol);
 
 void *dlopen_hook(const char *filename, int flags) {
 	printf("dlopen %s\n", filename);
-	return 1;
+	return (void *)(uintptr_t)1;
 }
 
 void glEnable_hook(GLenum v) {
@@ -1443,7 +1443,7 @@ void *dlsym_hook( void *handle, const char *symbol) {
 	printf("dlsym %s\n", symbol);
 	for (size_t i = 0; i < numhooks; ++i) {
 		if (!strcmp(symbol, default_dynlib[i].symbol)) {
-			return default_dynlib[i].func;
+			return (void *)default_dynlib[i].func;
 		}
 	}
 	return vglGetProcAddress(symbol);
@@ -1597,7 +1597,7 @@ void *CallObjectMethodV(void *env, void *obj, int methodID, uintptr_t *args) {
 			return "en";
 		}
 	default:
-		return 0x34343434;
+		return (void *)(uintptr_t)0x34343434;
 	}
 }
 
@@ -1674,11 +1674,11 @@ void (*BatchOptimizer_Clear)(void *this);
 void *BatchOptimizer_Constructor(uint32_t *this) {
 	uint32_t *unk = new(0xC);
 	unk[0] = unk[1] = unk[2] = 0;
-	this[2] = unk;
-	this[1] = this;
-	this[0] = this;
+	this[2] = (uintptr_t)unk;
+	this[1] = (uintptr_t)this;
+	this[0] = (uintptr_t)this;
 	//this[3] = new(0x480000); // This is what BatchOptimizer uses for vertex data
-	this[4] = new(0x20000);
+	this[4] = (uintptr_t)new(0x20000);
 	((uint8_t *)this)[188] = 0;
 	BatchOptimizer_Clear(this);
 	return this;
@@ -1708,12 +1708,12 @@ char *menu_symbols[] = {
 so_hook beginscene_hook, body_apply_hook, menu_hooks[sizeof(menu_symbols) / sizeof(*menu_symbols)];
 void Renderer_BeginScene(uint32_t *this, int unk, int unk2, int unk3) {
 	SO_CONTINUE(int, beginscene_hook, this, unk, unk2, unk3);
-	((uint32_t *)this[7])[3] = vglAllocFromScratch(0x480000); // Use vitaGL internal circular pool to allow DRAW_SPEEDHACK usage
+	((uint32_t *)this[7])[3] = (uintptr_t)vglAllocFromScratch(0x480000); // Use vitaGL internal circular pool to allow DRAW_SPEEDHACK usage
 }
 
 GLboolean is_menu = GL_FALSE;
 
-#define GEN_HOOK(x) hook_addr(so_symbol(&main_mod, menu_symbols[x]), hook_func##x)
+#define GEN_HOOK(x) hook_addr(so_symbol(&main_mod, menu_symbols[x]), (uintptr_t)hook_func##x)
 #define GEN_FUNC(x) \
 	int hook_func##x(void *unk, int unk2, void *unk3) { \
 		is_menu = GL_TRUE; \
@@ -1751,15 +1751,15 @@ void ImageBody_Apply(uint32_t *this, uint32_t unk) {
 }
 
 void patch_game(void) {
-	new = so_symbol(&main_mod, "_Znwj");
-	BatchOptimizer_Clear = so_symbol(&main_mod, "_ZN14BatchOptimizer4Body5clearEv");	
+	new = (void *(*)(size_t))so_symbol(&main_mod, "_Znwj");
+	BatchOptimizer_Clear = (void (*)(void *))so_symbol(&main_mod, "_ZN14BatchOptimizer4Body5clearEv");
 	
-	texNum = so_symbol(&main_mod, "_ZN5Image4Body6texNumE");
+	texNum = (uint32_t *)so_symbol(&main_mod, "_ZN5Image4Body6texNumE");
 	
-	hook_addr(so_symbol(&main_mod, "_ZN14BatchOptimizer4BodyC2Ev"), BatchOptimizer_Constructor);
-	beginscene_hook = hook_addr(so_symbol(&main_mod, "_ZN19AndroidRenderDevice4Impl10beginSceneEv"), Renderer_BeginScene);
+	hook_addr(so_symbol(&main_mod, "_ZN14BatchOptimizer4BodyC2Ev"), (uintptr_t)BatchOptimizer_Constructor);
+	beginscene_hook = hook_addr(so_symbol(&main_mod, "_ZN19AndroidRenderDevice4Impl10beginSceneEv"), (uintptr_t)Renderer_BeginScene);
 	
-	body_apply_hook = hook_addr(so_symbol(&main_mod, "_ZN5Image4Body5applyEj"), ImageBody_Apply);
+	body_apply_hook = hook_addr(so_symbol(&main_mod, "_ZN5Image4Body5applyEj"), (uintptr_t)ImageBody_Apply);
 	
 	menu_hooks[0] = GEN_HOOK(0);
 	menu_hooks[1] = GEN_HOOK(1);

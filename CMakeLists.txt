@@ -10,6 +10,12 @@ endif()
 
 project(dariusburst C CXX)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2_image REQUIRED IMPORTED_TARGET SDL2_image)
+pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf)
+pkg_check_modules(SDL2_net REQUIRED IMPORTED_TARGET SDL2_net)
+pkg_check_modules(sndfile REQUIRED IMPORTED_TARGET sndfile)
+pkg_check_modules(vorbisfile REQUIRED IMPORTED_TARGET vorbisfile)
 set(VITA_APP_NAME "DARIUSBURST SP")
 set(VITA_TITLEID  "DARIUS0SP")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
@@ -25,13 +31,20 @@ add_executable(dariusburst
   loader/ctype_patch.c
 )
 
+set_target_properties(dariusburst PROPERTIES LINKER_LANGUAGE CXX)
+
 target_link_libraries(dariusburst
   -Wl,--whole-archive pthread -Wl,--no-whole-archive
+  PkgConfig::SDL2_image
+  PkgConfig::SDL2_ttf
+  PkgConfig::SDL2_net
+  PkgConfig::sndfile
+  PkgConfig::vorbisfile
   SDL2_image
   SDL2_ttf
   SDL2_net
   freetype
-  soloud_static
+  soloud
   SDL2
   png
   webp
@@ -41,7 +54,7 @@ target_link_libraries(dariusburst
   opus
   modplug
   z
-  opensles
+  OpenSLES
   sndfile
   vorbis
   vorbisenc
@@ -52,7 +65,6 @@ target_link_libraries(dariusburst
   m
   imgui
   vitaGL
-  stdc++
   vitashark
   SceShaccCgExt
   mathneon
@@ -71,7 +83,6 @@ target_link_libraries(dariusburst
   SceFios2_stub
   SceGxm_stub
   SceIme_stub
-  SceLibcBridge_stub
   SceShaccCg_stub
   SceSysmodule_stub
   ScePower_stub
@@ -79,7 +90,7 @@ target_link_libraries(dariusburst
   SceMotion_stub
   SceHid_stub
   SceVshBridge_stub
-  SceKernelDmacmgr_stub
+  SceKernelDmacMgr_stub
 )
 
 vita_create_self(eboot.bin dariusburst UNSAFE)
@@ -91,3 +102,7 @@ vita_create_vpk(dariusburst.vpk ${VITA_TITLEID} eboot.bin
        ${CMAKE_SOURCE_DIR}/livearea/startup.png sce_sys/livearea/contents/startup.png
        ${CMAKE_SOURCE_DIR}/livearea/template.xml sce_sys/livearea/contents/template.xml
 )
+
+set_property(SOURCE loader/so_util.c APPEND PROPERTY COMPILE_OPTIONS -Wno-error=return-mismatch -Wno-error=incompatible-pointer-types)
+
+set_property(SOURCE loader/main.c APPEND PROPERTY COMPILE_OPTIONS -std=gnu17)
